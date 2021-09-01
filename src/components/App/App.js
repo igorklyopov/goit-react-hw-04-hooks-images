@@ -1,4 +1,4 @@
-import React, { Component } from "react";
+import React, { useState, useEffect } from "react";
 import { theme, StyledErrorMessage } from "../../StyledCommon";
 import StyledApp from "./StyledApp";
 import Container from "../Container";
@@ -18,106 +18,87 @@ const Status = {
   REJECTED: "rejected",
 };
 
-class App extends Component {
-  state = {
-    searchQuery: "",
-    pageNumber: 1,
-    images: [],
-    moreImagesPerPage: false,
-    status: Status.IDLE,
-    error: null,
-  };
+function App() {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [pageNumber, setPageNumber] = useState(1);
+  const [images, setImages] = useState([]);
+  const [moreImagesPerPage, setMoreImagesPerPage] = useState(false);
+  const [status, setStatus] = useState(Status.IDLE);
+  const [error, setError] = useState(null);
 
-  componentDidUpdate(prevProps, prevState) {
-    const { searchQuery, pageNumber } = this.state;
-
-    if (
-      prevState.searchQuery !== this.state.searchQuery &&
-      this.state.searchQuery !== ""
-    ) {
-      this.setState({ status: Status.PENDING, pageNumber: 1 });
-
-      this.getImages(searchQuery, pageNumber);
-    }
-  }
-
-  getImages = (searchQuery, pageNumber) => {
+  const getImages = (searchQuery, pageNumber) => {
     fetchImages(searchQuery, pageNumber)
       .then((images) => {
-        this.setState({ images: images.hits, status: Status.RESOLVED });
+        setImages((prevImages) => [...prevImages, ...images.hits]);
+        setStatus(Status.RESOLVED);
 
         if (images.total === 0) {
-          this.setState({
-            status: Status.REJECTED,
-            error: "No images for this request!",
-          });
+          setStatus(Status.REJECTED);
+          setError("No images for this request!");
+
           return;
         }
 
         images.total > IMAGES_PER_PAGE
-          ? this.setState({ moreImagesPerPage: true })
-          : this.setState({ moreImagesPerPage: false });
+          ? setMoreImagesPerPage(true)
+          : setMoreImagesPerPage(false);
 
         if (pageNumber > 1) {
           scrollDown();
         }
       })
-      .catch((error) =>
-        this.setState({ error: error.message, status: Status.REJECTED })
-      );
+      .catch((error) => {
+        setError(error.message);
+        setStatus(Status.REJECTED);
+      });
   };
 
-  onSearchFormSubmit = (searchQuery) => {
-    this.setState({ searchQuery, pageNumber: 1 });
+  useEffect(() => {
+    if (searchQuery !== "") getImages(searchQuery, pageNumber);
+  }, [searchQuery, pageNumber]);
+
+  const onSearchFormSubmit = (searchQuery) => {
+    setSearchQuery(searchQuery);
+    setImages([]);
+    setPageNumber(1);
 
     if (searchQuery === "") {
-      this.setState({
-        status: Status.REJECTED,
-        error: "Please enter your request!",
-      });
+      setStatus(Status.REJECTED);
+      setError("Please enter your request!");
     }
   };
 
-  onLoadMoreBtnClick = () => {
-    const { searchQuery, pageNumber } = this.state;
-
-    this.setState({
-      status: Status.PENDING,
-      pageNumber: pageNumber + 1,
-    });
-    this.getImages(searchQuery, pageNumber + 1);
+  const onLoadMoreBtnClick = () => {
+    setStatus(Status.PENDING);
+    setPageNumber((prevPageNumber) => prevPageNumber + 1);
   };
 
-  render() {
-    const { images, moreImagesPerPage, status, error } = this.state;
-
-    return (
-      <StyledApp>
-        <Searchbar>
-          <SearchForm getFormData={this.onSearchFormSubmit} />
-        </Searchbar>
-        <Section theme={theme}>
-          <Container>
-            {status === "pending" && showGalleryLoader()}
-            {status === "rejected" && (
-              <StyledErrorMessage>{error}</StyledErrorMessage>
-            )}
-            {status === "resolved" && (
-              <>
-                <ImageGallery images={images} />
-                {moreImagesPerPage && (
-                  <Button
-                    label="Load more"
-                    onLoadMoreBtnClick={this.onLoadMoreBtnClick}
-                  />
-                )}
-              </>
-            )}
-          </Container>
-        </Section>
-      </StyledApp>
-    );
-  }
+  return (
+    <StyledApp>
+      <Searchbar>
+        <SearchForm getFormData={onSearchFormSubmit} />
+      </Searchbar>
+      <Section theme={theme}>
+        <Container>
+          {status === "pending" && showGalleryLoader()}
+          {status === "rejected" && (
+            <StyledErrorMessage>{error}</StyledErrorMessage>
+          )}
+          {status === "resolved" && (
+            <>
+              <ImageGallery images={images} />
+              {moreImagesPerPage && (
+                <Button
+                  label="Load more"
+                  onLoadMoreBtnClick={onLoadMoreBtnClick}
+                />
+              )}
+            </>
+          )}
+        </Container>
+      </Section>
+    </StyledApp>
+  );
 }
 
 export default App;
