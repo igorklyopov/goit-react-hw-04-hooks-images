@@ -26,6 +26,10 @@ function App() {
   const [status, setStatus] = useState(Status.IDLE);
   const [error, setError] = useState(null);
 
+  useEffect(() => {
+    if (searchQuery !== "") getImages(searchQuery, pageNumber);
+  }, [searchQuery, pageNumber]);
+
   const getImages = (searchQuery, pageNumber) => {
     fetchImages(searchQuery, pageNumber)
       .then((images) => {
@@ -52,10 +56,6 @@ function App() {
         setStatus(Status.REJECTED);
       });
   };
-
-  useEffect(() => {
-    if (searchQuery !== "") getImages(searchQuery, pageNumber);
-  }, [searchQuery, pageNumber]);
 
   const onSearchFormSubmit = (searchQuery) => {
     setSearchQuery(searchQuery);
